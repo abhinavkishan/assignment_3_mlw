@@ -1,0 +1,125 @@
+# =============================================================================
+# ChannelNet reproduction - DEFAULT (paper-scale) configuration
+# Intended for a GPU machine (Kaggle P100 / T4).  Every script reads this file;
+# any value can be overridden from the command line with
+#     --set key.subkey=value      e.g.  --set training.ir.max_epochs=20
+# =============================================================================
+
+seed: 2026                     # master seed - every RNG stream is derived from it
+
+paths:                         # relative paths are resolved w.r.t. the project root
+  data_dir: data               # generated channel realisations (*.npy)
+  ckpt_dir: checkpoints        # trained SR / IR weights (+ meta.json)
+  results_dir: results         # figures/, metrics/, logs/
+  report_dir: report
+
+# ---------------------------------------------------------------- OFDM (LTE 1.4 MHz)
+ofdm:
+  n_subcarriers: 72            # 6 resource blocks x 12 sub-carriers
+  n_symbols: 14                # one LTE sub-frame (2 slots x 7 symbols, normal CP)
+  subcarrier_spacing: 15000.0  # Hz
+  fft_size: 128                # -> sampling rate 1.92 MHz
+  cp_lengths: [10, 9, 9, 9, 9, 9, 9, 10, 9, 9, 9, 9, 9, 9]   # samples (normal CP)
+
+# ---------------------------------------------------------------- channel
+channel:
+  models: [VehA, SUI5]
+  carrier_freq: 2.1e9          # Hz
+  speed_kmh: 50.0              # UE speed  -> f_D = v f_c / c  (~97 Hz)
+  doppler_mode: speed          # 'speed'   : Jakes Doppler from UE speed for every tap (Vienna-style)
+                               # 'standard': per-tap Doppler from the SUI table (SUI5 only)
+  n_sinusoids: 32              # sum-of-sinusoids terms per tap (Rayleigh/Jakes fading)
+  source: mat                  # 'mat'    -> channels generated with the Vienna 5G Link-Level Simulator
+                               #             (matlab/generate_vienna_channels.m, files below)
+                               # 'python' -> built-in equivalent TDL generator (src/channel_models.py)
+  mat_files:                   # a list is concatenated (generated in parallel chunks)
+    VehA: [data/vienna_VehA.mat]
+    SUI5: [data/vienna_SUI5_part1.mat, data/vienna_SUI5_part2.mat, data/vienna_SUI5_part3.mat]
+  mat_variable: H              # variable name inside the .mat file, shape [N,72,14] (or [72,14,N])
+
+# ---------------------------------------------------------------- dataset
+dataset:
+  n_realizations: 40000        # paper: 40k channel realisations
+  split: [0.8, 0.1, 0.1]       # 32k train / 4k validation / 4k test
+  n_test_eval: 4000            # number of test frames used in evaluation (<= test size)
+  n_est_cov: 2000              # frames used to estimate the covariance for "estimated MMSE"
+
+# ---------------------------------------------------------------- pilots (lattice / diamond)
+# mask[k, l] = 1  for  l in symbols[i],  k = offsets[i] + m*step
+pilots:
+  main: 48
+  patterns:
+    48: {symbols: [0, 4, 7, 11], step: 6,  offsets: [0, 3, 0, 3]}   # LTE CRS (port 0) layout
+    36: {symbols: [0, 4, 7, 11], step: 8,  offsets: [0, 4, 0, 4]}
+    24: {symbols: [3, 10],       step: 6,  offsets: [0, 3]}
+    16: {symbols: [3, 10],       step: 9,  offsets: [0, 4]}
+    8:  {symbols: [3, 10],       step: 18, offsets: [0, 9]}
+
+# ---------------------------------------------------------------- SNR
+snr:
+  test: [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30]   # dB
+  mix_range: [0, 30]           # used by the 'mix' (multi-SNR) training variant
+  pilot_sweep: 20              # fixed SNR (dB) for the MSE-vs-#pilots study (paper Fig. 5: 20 dB)
+
+# ---------------------------------------------------------------- estimators
+estimators:
+  sr_input_interp: rbf         # interpolation that turns LS pilots into the low-res image (paper code: Gaussian RBF)
+  ls_interps: [linear, cubic, rbf]
+  robust_tau_max: 4.69e-6      # uniform-PDP assumption of the robust LMMSE (= CP duration)
+  almmse: {n_time: 2, n_freq: 5}   # ideal ALMMSE (Simko et al. 2010): number of eigenvalues kept
+
+# ---------------------------------------------------------------- networks
+model:
+  srcnn: {n1: 64, n2: 32, f1: 9, f2: 1, f3: 5}      # Dong et al. 9-1-5 SRCNN
+  dncnn: {depth: 20, features: 64}                   # Zhang et al. DnCNN (residual learning)
+
+# ---------------------------------------------------------------- training
+training:
+  device: auto                 # auto | cuda | cpu
+  batch_size: 128
+  eval_batch_size: 2048
+  amp: true                    # fp16 mixed precision on CUDA (ignored on CPU)
+  deterministic: true          # cuDNN deterministic kernels (reproducibility)
+  num_threads: 0               # CPU threads for torch (0 = torch default)
+  time_budget_hours: 9.0       # 04_train stops starting new models after this (Kaggle 12 h limit);
+                               # re-run the same command later to train the remaining ones
+  sr:
+    lr: 1.0e-3
+    max_epochs: 150
+    patience: 15               # early stopping on validation loss
+    lr_patience: 5             # ReduceLROnPlateau
+    lr_factor: 0.5
+    min_lr: 1.0e-6
+  ir:
+    lr: 1.0e-3
+    max_epochs: 40
+    patience: 8
+    lr_patience: 4
+    lr_factor: 0.5
+    min_lr: 1.0e-6
+
+# ---------------------------------------------------------------- experiments to train
+# train_snrs: numbers = SNR-specific models (paper: 12 dB = "deep low-SNR", 22 dB = "deep high-SNR",
+#             20 dB for the pilot-number study of Fig. 5);
+#             'mix'   = one model trained on SNRs drawn uniformly from snr.mix_range (generalisation study)
+# Listed in priority order: if training.time_budget_hours runs out, the last entries are skipped.
+experiments:
+  - {channel: VehA, pilots: 48, train_snrs: [12, 22, 20]}   # paper Fig. 3 (+ Fig. 5 at 48 pilots)
+  - {channel: SUI5, pilots: 48, train_snrs: [12, 22]}       # paper Fig. 4
+  - {channel: VehA, pilots: 36, train_snrs: [20]}           # paper Fig. 5 (MSE vs #pilots, 20 dB)
+  - {channel: VehA, pilots: 24, train_snrs: [20]}
+  - {channel: VehA, pilots: 16, train_snrs: [20]}
+  - {channel: VehA, pilots: 8,  train_snrs: [20]}
+  - {channel: VehA, pilots: 48, train_snrs: [mix]}          # extra: multi-SNR generalisation
+  - {channel: SUI5, pilots: 48, train_snrs: [mix]}
+  - {channel: SUI5, pilots: 48, train_snrs: [20]}           # extra: pilot study for SUI5
+  - {channel: SUI5, pilots: 24, train_snrs: [20]}
+  - {channel: SUI5, pilots: 8,  train_snrs: [20]}
+
+# ---------------------------------------------------------------- figures
+plots:
+  fig3: {channel: VehA, pilots: 48}          # paper Fig. 3: MSE vs SNR, VehA, 48 pilots
+  fig4: {channel: SUI5, pilots: 48}          # paper Fig. 4: MSE vs SNR, SUI5, 48 pilots
+  fig5: {channel: VehA}                      # paper Fig. 5: MSE vs #pilots at snr.pilot_sweep (20 dB)
+  example_snr: 22
+  dpi: 150

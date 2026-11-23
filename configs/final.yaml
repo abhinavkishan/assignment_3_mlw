@@ -1,0 +1,39 @@
+# =============================================================================
+# FINAL configuration = the run whose results are in results/ and checkpoints/
+# (trained on Kaggle, Tesla T4, 424 min of training, 14 ChannelNet models).
+#
+# Differences w.r.t. default.yaml (which is the later, paper-aligned set-up):
+#   * training channels from the Python implementation of the VehA / SUI5 models
+#     (statistically equivalent to the Vienna simulator, see report Section 6.4 and
+#      results/metrics/vienna_mse_vs_snr_*.csv)
+#   * pilot-density study at 22 dB with ChannelNet trained at 22 dB (paper Fig. 5: 20 dB)
+#   * reduced-pilot models also trained at 12 dB for VehA (16 and 8 pilots)
+#
+# Re-create the results from the saved checkpoints (no training):
+#   python run_all.py --config configs/final.yaml --steps data viz conventional test plots
+# =============================================================================
+base: default.yaml
+
+channel:
+  source: python
+
+snr:
+  pilot_sweep: 22
+
+experiments:
+  - {channel: VehA, pilots: 48, train_snrs: [12, 22, mix]}
+  - {channel: SUI5, pilots: 48, train_snrs: [12, 22, mix]}
+  - {channel: VehA, pilots: 16, train_snrs: [12, 22]}
+  - {channel: VehA, pilots: 8,  train_snrs: [12, 22]}
+  - {channel: VehA, pilots: 24, train_snrs: [22]}
+  - {channel: SUI5, pilots: 24, train_snrs: [22]}
+  - {channel: SUI5, pilots: 16, train_snrs: [22]}
+  - {channel: SUI5, pilots: 8,  train_snrs: [22]}
+
+test:
+  skip_dl_if_present: false    # true -> reuse results/metrics/channelnet_*.csv instead of re-running inference
+
+plots:
+  fig5: {channel: VehA}        # MSE vs #pilots at snr.pilot_sweep
+  extra:
+    - {name: lowpilots, channel: VehA, pilots: [16, 8]}   # VehA, 16 / 8 pilots, 12 & 22 dB models

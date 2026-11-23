@@ -1,0 +1,40 @@
+{
+  "VehA": {
+    "model": "VehA",
+    "reference": "ITU-R M.1225 Vehicular-A",
+    "n_paths": 6,
+    "max_delay_us": 2.5100000000000002,
+    "rms_delay_spread_us": 0.37039012328608284,
+    "coherence_bw_kHz(1/(5*trms))": 539.9712017847828,
+    "max_doppler_hz": 97.28952776612769,
+    "coherence_time_ms(0.423/fD)": 4.34784719088,
+    "cp_duration_us": 4.6875,
+    "source": "python",
+    "n_total": 40000,
+    "n_train": 32000,
+    "n_val": 4000,
+    "n_test": 4000,
+    "mean_power_E|H|^2": 0.995137095451355,
+    "real_std": 0.7034279704093933,
+    "imag_std": 0.7073158621788025
+  },
+  "SUI5": {
+    "model": "SUI5",
+    "reference": "Erceg et al., SUI-5 (IEEE 802.16.3c-01/29r4)",
+    "n_paths": 3,
+    "max_delay_us": 10.0,
+    "rms_delay_spread_us": 2.8418323478270695,
+    "coherence_bw_kHz(1/(5*trms))": 70.37712838793063,
+    "max_doppler_hz": 97.28952776612769,
+    "coherence_time_ms(0.423/fD)": 4.34784719088,
+    "cp_duration_us": 4.6875,
+    "source": "python",
+    "n_total": 40000,
+    "n_train": 32000,
+    "n_val": 4000,
+    "n_test": 4000,
+    "mean_power_E|H|^2": 1.0048953294754028,
+    "real_std": 0.709212064743042,
+    "imag_std": 0.7084411978721619
+  }
+}

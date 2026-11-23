@@ -1,0 +1,31 @@
+# =============================================================================
+# CROSS-CHECK: the ChannelNets of configs/final.yaml (trained on the Python implementation of the
+# VehA / SUI5 models) evaluated on channels generated with the Vienna 5G Link-Level Simulator
+# (data/vienna_*.mat, matlab/generate_vienna_channels.m).  Inference only - no training.
+#   python run_all.py --config configs/vienna_eval.yaml --steps data conventional test plots
+# =============================================================================
+base: default.yaml
+
+paths:
+  results_dir: results_vienna
+  ckpt_dir: checkpoints          # the trained models of the final run
+
+channel:
+  source: mat
+
+dataset:
+  n_test_eval: 1000              # CPU inference budget (1000 Vienna test frames per SNR)
+
+pilots:
+  patterns:                      # only the main pattern is evaluated here
+    48: {symbols: [0, 4, 7, 11], step: 6,  offsets: [0, 3, 0, 3]}
+
+snr:
+  pilot_sweep: 22
+
+experiments:
+  - {channel: VehA, pilots: 48, train_snrs: [12, 22, mix]}
+  - {channel: SUI5, pilots: 48, train_snrs: [12, 22, mix]}
+
+plots:
+  fig5: {channel: VehA}

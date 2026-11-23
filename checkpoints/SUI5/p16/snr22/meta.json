@@ -1,0 +1,81 @@
+{
+  "channel": "SUI5",
+  "pilots": 16,
+  "train_snr": 22,
+  "tag": "snr22",
+  "seed": 42115,
+  "scale": 0.7082913517951965,
+  "sr_input_interp": "rbf",
+  "model": {
+    "srcnn": {
+      "n1": 64,
+      "n2": 32,
+      "f1": 9,
+      "f2": 1,
+      "f3": 5
+    },
+    "dncnn": {
+      "depth": 20,
+      "features": 64
+    }
+  },
+  "training": {
+    "device": "auto",
+    "batch_size": 128,
+    "eval_batch_size": 2048,
+    "amp": true,
+    "deterministic": true,
+    "num_threads": 0,
+    "time_budget_hours": 9.0,
+    "sr": {
+      "lr": 0.001,
+      "max_epochs": 150,
+      "patience": 15,
+      "lr_patience": 5,
+      "lr_factor": 0.5,
+      "min_lr": 1e-06
+    },
+    "ir": {
+      "lr": 0.001,
+      "max_epochs": 40,
+      "patience": 8,
+      "lr_patience": 4,
+      "lr_factor": 0.5,
+      "min_lr": 1e-06
+    }
+  },
+  "dataset": {
+    "n_realizations": 40000,
+    "split": [
+      0.8,
+      0.1,
+      0.1
+    ],
+    "n_test_eval": 4000,
+    "n_est_cov": 2000
+  },
+  "config_file": "/kaggle/working/ChannelNet/configs/default.yaml",
+  "environment": {
+    "python": "3.13.16",
+    "platform": "Linux-6.18.55+-x86_64-with-glibc2.39",
+    "numpy": "2.1.3",
+    "scipy": "1.16.3",
+    "torch": "2.11.0+cu130",
+    "cuda": true,
+    "gpu": "Tesla T4"
+  },
+  "sr_result": {
+    "best_val_loss": 0.0835069345831871,
+    "best_epoch": 150,
+    "epochs_run": 150,
+    "train_seconds": 424.1617040634155
+  },
+  "sr_params": 8129,
+  "ir_result": {
+    "best_val_loss": 0.015456030793488026,
+    "best_epoch": 35,
+    "epochs_run": 40,
+    "train_seconds": 1552.09139585495
+  },
+  "ir_params": 667073
+}
